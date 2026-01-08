@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Настройки - JMessenger</title>
+    <style>
+        body {
+            margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at center, #2a1a4a 0%, #0f1721 100%);
+            font-family: sans-serif; color: white;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px);
+            padding: 40px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 350px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+        }
+        .avatar { width: 100px; height: 100px; background: linear-gradient(135deg, #6a11cb, #2575fc); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; }
+        input { width: 100%; padding: 16px; margin: 10px 0; border-radius: 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: white; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #2575fc; }
+        .btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #6a11cb, #2575fc); border: none; border-radius: 14px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(37, 117, 252, 0.4); }
+        .back { margin-top: 25px; display: block; color: #708499; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="avatar" id="av">?</div>
+        <h2 id="curN">Профиль</h2>
+        <input type="text" id="nInp" placeholder="Новое отображаемое имя">
+        <input type="text" id="uInp" placeholder="Новый @username">
+        <button class="btn" onclick="update()">СОХРАНИТЬ</button>
+        <button class="btn" style="background:#e53935; margin-top:15px" onclick="location.href='index.html'">ВЫЙТИ</button>
+        <a href="second.html" class="back">← Назад к чатам</a>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9X5comyXJzgrsv_KZtoHbkXUoViCbUJM",
+            authDomain: "messeg-2b14a.firebaseapp.com",
+            projectId: "messeg-2b14a",
+            storageBucket: "messeg-2b14a.firebasestorage.app",
+            messagingSenderId: "505847795650",
+            appId: "1:505847795650:web:04833b23cc1f8be018d05b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        onAuthStateChanged(auth, async (u) => {
+            if (u) {
+                const d = await getDoc(doc(db, "users", u.uid));
+                if (d.exists()) {
+                    document.getElementById('nInp').value = d.data().displayName;
+                    document.getElementById('uInp').value = d.data().username;
+                    document.getElementById('curN').innerText = d.data().displayName;
+                    document.getElementById('av').innerText = d.data().displayName[0].toUpperCase();
+                }
+            } else { location.href = "index.html"; }
+        });
+
+        window.update = async () => {
+            const n = document.getElementById('nInp').value;
+            const u = document.getElementById('uInp').value;
+            if(!n || !u) return alert("Заполните поля!");
+            try {
+                await updateDoc(doc(db, "users", auth.currentUser.uid), { displayName: n, username: u });
+                alert("Данные обновлены!");
+                location.reload();
+            } catch(e) { alert(e.message); }
+        };
+    </script>
+</body>
+</html>

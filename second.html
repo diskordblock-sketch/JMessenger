@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>JMessenger</title>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent: #7f34d6;
+            --max-blue: #007aff;
+            --danger: #ff4b2b;
+        }
+
+        body { 
+            margin: 0; color: white; font-family: 'Segoe UI', sans-serif; 
+            display: flex; height: 100vh; overflow: hidden;
+            background: #0f1721;
+        }
+        
+        .sidebar { 
+            width: 360px; 
+            background: linear-gradient(180deg, rgba(42, 26, 74, 0.95) 0%, rgba(23, 33, 43, 0.98) 100%);
+            backdrop-filter: blur(25px); border-right: 1px solid var(--glass-border); 
+            display: flex; flex-direction: column; z-index: 2;
+        }
+
+        .chat-view { 
+            flex: 1; display: flex; flex-direction: column; 
+            background: radial-gradient(circle at center, #1a1a2e 0%, #0f1721 100%);
+        }
+
+        .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.2); font-size: 18px; }
+
+        .search-area { padding: 20px; }
+        .search-bar { width: 100%; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: white; outline: none; box-sizing: border-box; }
+        
+        .chat-item {
+            padding: 15px 20px; cursor: pointer; display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.03); transition: 0.2s;
+            position: relative; user-select: none;
+        }
+        .chat-item:hover { background: rgba(255,255,255,0.05); }
+        .chat-item.active { background: rgba(127, 52, 214, 0.15); border-left: 3px solid var(--accent); }
+
+        .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; }
+
+        .badge {
+            background: var(--max-blue); color: white; font-size: 11px;
+            padding: 2px 8px; border-radius: 10px; font-weight: bold; display: none;
+        }
+
+        .header { padding: 20px 30px; background: rgba(23, 33, 43, 0.4); border-bottom: 1px solid var(--glass-border); display: none; }
+        .messages { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        
+        .bubble { padding: 10px 16px; border-radius: 18px; max-width: 70%; font-size: 15px; }
+        .my { align-self: flex-end; background: var(--accent); border-bottom-right-radius: 4px; }
+        .other { align-self: flex-start; background: rgba(255,255,255,0.1); border-bottom-left-radius: 4px; }
+
+        .input-bar { padding: 20px; background: rgba(23, 33, 43, 0.6); display: none; gap: 15px; align-items: center; border-top: 1px solid var(--glass-border); }
+        .input-bar input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 15px; color: white; outline: none; }
+        
+        #context-menu {
+            position: fixed; background: #1c242d; border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; display: none;
+        }
+        .menu-item { padding: 10px 20px; cursor: pointer; font-size: 14px; }
+        .menu-item:hover { background: rgba(255,255,255,0.05); }
+        .menu-item.red { color: var(--danger); }
+
+        .nav-btn { padding: 15px; background: none; color: var(--accent); border: none; cursor: pointer; font-weight: bold; border-top: 1px solid var(--glass-border); }
+    </style>
+</head>
+<body>
+    <div id="context-menu">
+        <div class="menu-item red" onclick="deleteHistory()">🗑 Удалить переписку</div>
+    </div>
+
+    <div class="sidebar">
+        <div class="search-area"><input type="text" class="search-bar" id="srch" placeholder="Поиск..." oninput="searchUsers()"></div>
+        <div style="flex:1; overflow-y:auto" id="chatList"></div>
+        <button class="nav-btn" onclick="location.href='settings.html'">⚙ НАСТРОЙКИ</button>
+    </div>
+
+    <div class="chat-view">
+        <div class="empty-state" id="emptyState">Выберите чат для начала общения</div>
+        <div class="header" id="chatHeader"><b id="hName"></b></div>
+        <div class="messages" id="mBox"></div>
+        <div class="input-bar" id="chatInputBar">
+            <input type="text" id="msgI" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')send()">
+            <button onclick="send()" style="background:none; border:none; color:var(--accent); font-size:24px; cursor:pointer;">🚀</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, writeBatch, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9X5comyXJzgrsv_KZtoHbkXUoViCbUJM",
+            authDomain: "messeg-2b14a.firebaseapp.com",
+            projectId: "messeg-2b14a",
+            storageBucket: "messeg-2b14a.firebasestorage.app",
+            messagingSenderId: "505847795650",
+            appId: "1:505847795650:web:04833b23cc1f8be018d05b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let activeId = null;
+        let unsubMessages = null;
+        let targetDeleteId = null;
+        const startTime = Date.now();
+
+        onAuthStateChanged(auth, (u) => { if(u) loadChats(); });
+
+        function loadChats() {
+            onSnapshot(query(collection(db, "users")), (snap) => {
+                const list = document.getElementById('chatList');
+                list.innerHTML = "";
+                snap.forEach(d => {
+                    if(d.id !== auth.currentUser.uid) renderChatItem(d.id, d.data());
+                });
+            });
+        }
+
+        function renderChatItem(id, data) {
+            const list = document.getElementById('chatList');
+            const div = document.createElement('div');
+            div.className = `chat-item ${activeId === id ? 'active' : ''}`;
+            div.id = `chat-${id}`;
+            div.onclick = () => openChat(id, data.displayName);
+            div.oncontextmenu = (e) => {
+                e.preventDefault(); targetDeleteId = id;
+                const m = document.getElementById('context-menu');
+                m.style.display = 'block'; m.style.left = e.pageX + 'px'; m.style.top = e.pageY + 'px';
+            };
+
+            div.innerHTML = `
+                <div class="avatar">${data.displayName[0].toUpperCase()}</div>
+                <div style="flex:1; overflow:hidden">
+                    <div style="display:flex; justify-content:space-between">
+                        <b style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${data.displayName}</b>
+                        <span class="badge" id="badge-${id}">1</span>
+                    </div>
+                    <div style="font-size:12px; color:gray; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" id="last-${id}">...</div>
+                </div>`;
+            list.appendChild(div);
+            listenLastMsgAndNotify(id);
+        }
+
+        function listenLastMsgAndNotify(id) {
+            const q = query(collection(db, "messages"), orderBy("time", "desc"), limit(1));
+            onSnapshot(q, (snap) => {
+                snap.forEach(d => {
+                    const m = d.data();
+                    const isRelevant = (m.from === id && m.to === auth.currentUser.uid) || (m.to === id && m.from === auth.currentUser.uid);
+                    if(isRelevant) {
+                        document.getElementById(`last-${id}`).innerText = m.text;
+                        const mTime = m.time ? m.time.toMillis() : Date.now();
+                        if(m.from === id && activeId !== id && mTime > startTime) {
+                            document.getElementById(`badge-${id}`).style.display = "block";
+                        }
+                    }
+                });
+            });
+        }
+
+        window.openChat = (id, name) => {
+            activeId = id;
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('chatHeader').style.display = 'block';
+            document.getElementById('chatInputBar').style.display = 'flex';
+            document.getElementById('hName').innerText = name;
+            document.getElementById(`badge-${id}`).style.display = "none";
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`chat-${id}`).classList.add('active');
+
+            if(unsubMessages) unsubMessages();
+            unsubMessages = onSnapshot(query(collection(db, "messages"), orderBy("time", "asc")), (snap) => {
+                const box = document.getElementById('mBox');
+                box.innerHTML = "";
+                snap.forEach(d => {
+                    const m = d.data();
+                    if((m.from === auth.currentUser.uid && m.to === activeId) || (m.to === auth.currentUser.uid && m.from === activeId)) {
+                        box.innerHTML += `<div class="bubble ${m.from === auth.currentUser.uid ? 'my' : 'other'}">${m.text}</div>`;
+                    }
+                });
+                box.scrollTop = box.scrollHeight;
+            });
+        };
+
+        window.deleteHistory = async () => {
+            if(!confirm("Удалить переписку?")) return;
+            const snap = await getDocs(collection(db, "messages"));
+            const batch = writeBatch(db);
+            snap.forEach(d => {
+                const m = d.data();
+                if((m.from === auth.currentUser.uid && m.to === targetDeleteId) || (m.to === auth.currentUser.uid && m.from === targetDeleteId)) batch.delete(d.ref);
+            });
+            await batch.commit();
+            document.getElementById('context-menu').style.display = 'none';
+        };
+
+        window.send = async () => {
+            const i = document.getElementById('msgI');
+            if(!i.value || !activeId) return;
+            await addDoc(collection(db, "messages"), { from: auth.currentUser.uid, to: activeId, text: i.value, time: serverTimestamp() });
+            i.value = "";
+        };
+
+        window.onclick = () => document.getElementById('context-menu').style.display = 'none';
+        window.searchUsers = () => {
+            const v = document.getElementById('srch').value.toLowerCase();
+            document.querySelectorAll('.chat-item').forEach(item => {
+                const name = item.querySelector('b').innerText.toLowerCase();
+                item.style.display = name.includes(v) ? "flex" : "none";
+            });
+        };
+    </script>
+</body>
+</html>

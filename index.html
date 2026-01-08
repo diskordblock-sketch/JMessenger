@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>JMessenger</title>
+    <style>
+        body {
+            margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at 80% 20%, #2a1a4a 0%, #0f1721 40%);
+            background-color: #0f1721;
+            font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            padding: 50px; width: 360px; text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        h1 { font-weight: 200; letter-spacing: 6px; margin-bottom: 40px; font-size: 28px; }
+        input {
+            width: 100%; padding: 16px; margin: 10px 0; border-radius: 16px;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+            color: white; outline: none; box-sizing: border-box; transition: 0.3s;
+        }
+        input:focus { border-color: #6a11cb; box-shadow: 0 0 15px rgba(106, 17, 203, 0.3); }
+        button {
+            width: 100%; padding: 16px; margin-top: 20px; border-radius: 16px;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(106, 17, 203, 0.4); }
+        .toggle-link { color: #2575fc; cursor: pointer; display: block; margin-top: 20px; font-size: 14px; opacity: 0.8; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="glass-card" id="authCard">
+        <h1 id="formTitle">JMESSENGER</h1>
+        
+        <div id="regFields">
+            <input type="email" id="re" placeholder="Электронная почта">
+            <input type="text" id="ru" placeholder="Username (@login)">
+            <input type="password" id="rp" placeholder="Пароль">
+            <button onclick="handleAuth('up')">СОЗДАТЬ АККАУНТ</button>
+            <span class="toggle-link" onclick="toggleForm(true)">Уже есть аккаунт? Войти</span>
+        </div>
+
+        <div id="loginFields" class="hidden">
+            <input type="email" id="le" placeholder="Email">
+            <input type="password" id="lp" placeholder="Пароль">
+            <button onclick="handleAuth('in')">ВОЙТИ</button>
+            <span class="toggle-link" onclick="toggleForm(false)">Нет аккаунта? Регистрация</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9X5comyXJzgrsv_KZtoHbkXUoViCbUJM",
+            authDomain: "messeg-2b14a.firebaseapp.com",
+            projectId: "messeg-2b14a",
+            storageBucket: "messeg-2b14a.firebasestorage.app",
+            messagingSenderId: "505847795650",
+            appId: "1:505847795650:web:04833b23cc1f8be018d05b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.toggleForm = (showLogin) => {
+            const card = document.getElementById('authCard');
+            card.style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('regFields').classList.toggle('hidden', showLogin);
+                document.getElementById('loginFields').classList.toggle('hidden', !showLogin);
+                card.style.opacity = '1';
+            }, 300);
+        };
+
+        window.handleAuth = async (mode) => {
+            try {
+                if(mode === 'up') {
+                    const e = document.getElementById('re').value, u = document.getElementById('ru').value, p = document.getElementById('rp').value;
+                    const r = await createUserWithEmailAndPassword(auth, e, p);
+                    await setDoc(doc(db, "users", r.user.uid), { username: u, displayName: u });
+                } else {
+                    await signInWithEmailAndPassword(auth, document.getElementById('le').value, document.getElementById('lp').value);
+                }
+                location.href = "second.html";
+            } catch(e) { alert(e.message); }
+        };
+    </script>
+</body>
+</html>
