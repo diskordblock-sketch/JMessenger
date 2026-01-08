@@ -2,34 +2,37 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Настройки - JMessenger</title>
     <style>
         body {
             margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
             background: radial-gradient(circle at center, #2a1a4a 0%, #0f1721 100%);
-            font-family: sans-serif; color: white;
+            font-family: sans-serif; color: white; padding: 20px; box-sizing: border-box;
         }
         .card {
             background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px);
-            padding: 40px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.1);
-            width: 350px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            padding: 30px; border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%; max-width: 350px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.6);
         }
-        .avatar { width: 100px; height: 100px; background: linear-gradient(135deg, #6a11cb, #2575fc); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; }
-        input { width: 100%; padding: 16px; margin: 10px 0; border-radius: 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: white; box-sizing: border-box; outline: none; }
-        input:focus { border-color: #2575fc; }
-        .btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #6a11cb, #2575fc); border: none; border-radius: 14px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(37, 117, 252, 0.4); }
-        .back { margin-top: 25px; display: block; color: #708499; text-decoration: none; font-size: 14px; }
+        .avatar { width: 80px; height: 80px; background: linear-gradient(135deg, #6a11cb, #2575fc); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; }
+        input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); color: white; box-sizing: border-box; outline: none; }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6a11cb, #2575fc); border: none; border-radius: 12px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .back { margin-top: 20px; display: block; color: #708499; text-decoration: none; font-size: 14px; }
+        
+        @media (max-width: 400px) {
+            .card { padding: 20px; }
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="avatar" id="av">?</div>
-        <h2 id="curN">Профиль</h2>
-        <input type="text" id="nInp" placeholder="Новое отображаемое имя">
+        <h2 id="curN" style="margin-bottom: 20px;">Профиль</h2>
+        <input type="text" id="nInp" placeholder="Новое имя">
         <input type="text" id="uInp" placeholder="Новый @username">
         <button class="btn" onclick="update()">СОХРАНИТЬ</button>
-        <button class="btn" style="background:#e53935; margin-top:15px" onclick="logout()">ВЫЙТИ</button>
+        <button class="btn" style="background:#e53935; margin-top:10px" onclick="logout()">ВЫЙТИ</button>
         <a href="second.html" class="back">← Назад к чатам</a>
     </div>
 
@@ -60,12 +63,7 @@
                     document.getElementById('curN').innerText = d.data().displayName;
                     document.getElementById('av').innerText = d.data().displayName[0].toUpperCase();
                 }
-            } else { 
-                // Если пользователь не авторизован, отправляем на вход
-                if (!window.location.href.includes('index.html')) {
-                    location.href = "index.html";
-                }
-            }
+            } else { location.href = "index.html"; }
         });
 
         window.update = async () => {
@@ -74,19 +72,13 @@
             if(!n || !u) return alert("Заполните поля!");
             try {
                 await updateDoc(doc(db, "users", auth.currentUser.uid), { displayName: n, username: u });
-                alert("Данные обновлены!");
+                alert("Обновлено!");
                 location.reload();
             } catch(e) { alert(e.message); }
         };
 
-        // Функция для полного выхода из системы
         window.logout = async () => {
-            try {
-                await signOut(auth);
-                location.href = "index.html";
-            } catch (e) {
-                alert("Ошибка при выходе: " + e.message);
-            }
+            try { await signOut(auth); location.href = "index.html"; } catch (e) { alert(e.message); }
         };
     </script>
 </body>
