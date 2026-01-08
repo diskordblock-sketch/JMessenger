@@ -53,13 +53,19 @@
         .header { padding: 20px 30px; background: rgba(23, 33, 43, 0.4); border-bottom: 1px solid var(--glass-border); display: none; }
         .messages { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         
-        .bubble { padding: 10px 16px; border-radius: 18px; max-width: 70%; font-size: 15px; }
+        .bubble { padding: 10px 16px; border-radius: 18px; max-width: 70%; font-size: 15px; word-wrap: break-word; }
+        /* СТИЛЬ ДЛЯ КАРТИНКИ ВНУТРИ СООБЩЕНИЯ */
+        .bubble img { max-width: 100%; border-radius: 10px; display: block; margin-top: 5px; cursor: pointer; }
+        
         .my { align-self: flex-end; background: var(--accent); border-bottom-right-radius: 4px; }
         .other { align-self: flex-start; background: rgba(255,255,255,0.1); border-bottom-left-radius: 4px; }
 
         .input-bar { padding: 20px; background: rgba(23, 33, 43, 0.6); display: none; gap: 15px; align-items: center; border-top: 1px solid var(--glass-border); }
         .input-bar input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 15px; color: white; outline: none; }
         
+        /* СКРЫТЫЙ ИНПУТ ФАЙЛА */
+        #fileInp { display: none; }
+
         #context-menu {
             position: fixed; background: #1c242d; border: 1px solid var(--glass-border);
             border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; display: none;
@@ -87,6 +93,9 @@
         <div class="header" id="chatHeader"><b id="hName"></b></div>
         <div class="messages" id="mBox"></div>
         <div class="input-bar" id="chatInputBar">
+            <label for="fileInp" style="cursor:pointer; font-size: 24px;">📷</label>
+            <input type="file" id="fileInp" accept="image/*" onchange="uploadImg(this)">
+            
             <input type="text" id="msgI" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')send()">
             <button onclick="send()" style="background:none; border:none; color:var(--accent); font-size:24px; cursor:pointer;">🚀</button>
         </div>
@@ -96,6 +105,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, writeBatch, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        // ДОБАВЛЕН ИМПОРТ STORAGE
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyA9X5comyXJzgrsv_KZtoHbkXUoViCbUJM",
@@ -109,6 +120,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        const storage = getStorage(app); // Инициализация хранилища
 
         let activeId = null;
         let unsubMessages = null;
@@ -159,7 +171,8 @@
                     const m = d.data();
                     const isRelevant = (m.from === id && m.to === auth.currentUser.uid) || (m.to === id && m.from === auth.currentUser.uid);
                     if(isRelevant) {
-                        document.getElementById(`last-${id}`).innerText = m.text;
+                        // Если это картинка, пишем "Фото" в предпросмотре
+                        document.getElementById(`last-${id}`).innerText = m.img ? "📷 Фото" : m.text;
                         const mTime = m.time ? m.time.toMillis() : Date.now();
                         if(m.from === id && activeId !== id && mTime > startTime) {
                             document.getElementById(`badge-${id}`).style.display = "block";
@@ -186,11 +199,34 @@
                 snap.forEach(d => {
                     const m = d.data();
                     if((m.from === auth.currentUser.uid && m.to === activeId) || (m.to === auth.currentUser.uid && m.from === activeId)) {
-                        box.innerHTML += `<div class="bubble ${m.from === auth.currentUser.uid ? 'my' : 'other'}">${m.text}</div>`;
+                        let content = m.text ? `<div>${m.text}</div>` : "";
+                        // Если в сообщении есть ссылка на картинку, добавляем <img>
+                        if(m.img) content += `<img src="${m.img}" onclick="window.open('${m.img}')">`;
+                        
+                        box.innerHTML += `<div class="bubble ${m.from === auth.currentUser.uid ? 'my' : 'other'}">${content}</div>`;
                     }
                 });
                 box.scrollTop = box.scrollHeight;
             });
+        };
+
+        // ФУНКЦИЯ ЗАГРУЗКИ ИЗОБРАЖЕНИЯ
+        window.uploadImg = async (el) => {
+            const file = el.files[0];
+            if(!file || !activeId) return;
+            
+            const fileRef = ref(storage, `chats/${Date.now()}_${file.name}`);
+            try {
+                const snapshot = await uploadBytes(fileRef, file);
+                const url = await getDownloadURL(snapshot.ref);
+                await addDoc(collection(db, "messages"), { 
+                    from: auth.currentUser.uid, 
+                    to: activeId, 
+                    img: url, 
+                    time: serverTimestamp() 
+                });
+            } catch (e) { alert("Ошибка загрузки"); }
+            el.value = ""; // Сброс инпута
         };
 
         window.deleteHistory = async () => {
