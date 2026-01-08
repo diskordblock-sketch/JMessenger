@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>JMessenger</title>
     <style>
         :root {
@@ -23,15 +24,23 @@
             background: linear-gradient(180deg, rgba(42, 26, 74, 0.95) 0%, rgba(23, 33, 43, 0.98) 100%);
             backdrop-filter: blur(25px); border-right: 1px solid var(--glass-border); 
             display: flex; flex-direction: column; z-index: 2;
+            transition: transform 0.3s ease;
         }
 
         .chat-view { 
             flex: 1; display: flex; flex-direction: column; 
             background: radial-gradient(circle at center, #1a1a2e 0%, #0f1721 100%);
+            position: relative;
         }
 
-        .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.2); font-size: 18px; }
+        /* Кнопка назад для мобилок */
+        .back-btn {
+            display: none;
+            background: none; border: none; color: var(--accent);
+            font-size: 24px; cursor: pointer; padding-right: 15px;
+        }
 
+        .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.2); font-size: 18px; text-align: center; padding: 20px; }
         .search-area { padding: 20px; }
         .search-bar { width: 100%; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); color: white; outline: none; box-sizing: border-box; }
         
@@ -43,38 +52,32 @@
         .chat-item:hover { background: rgba(255,255,255,0.05); }
         .chat-item.active { background: rgba(127, 52, 214, 0.15); border-left: 3px solid var(--accent); }
 
-        .avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; }
+        .avatar { width: 50px; height: 50px; min-width: 50px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; }
+        .badge { background: var(--max-blue); color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: bold; display: none; }
 
-        .badge {
-            background: var(--max-blue); color: white; font-size: 11px;
-            padding: 2px 8px; border-radius: 10px; font-weight: bold; display: none;
-        }
-
-        .header { padding: 20px 30px; background: rgba(23, 33, 43, 0.4); border-bottom: 1px solid var(--glass-border); display: none; }
-        .messages { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        
-        .bubble { padding: 10px 16px; border-radius: 18px; max-width: 70%; font-size: 15px; word-wrap: break-word; }
-        /* СТИЛЬ ДЛЯ КАРТИНКИ ВНУТРИ СООБЩЕНИЯ */
-        .bubble img { max-width: 100%; border-radius: 10px; display: block; margin-top: 5px; cursor: pointer; }
-        
+        .header { padding: 15px 25px; background: rgba(23, 33, 43, 0.4); border-bottom: 1px solid var(--glass-border); display: none; align-items: center; }
+        .messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .bubble { padding: 10px 16px; border-radius: 18px; max-width: 85%; font-size: 15px; word-wrap: break-word; }
+        .bubble img { max-width: 100%; border-radius: 10px; display: block; margin-top: 5px; }
         .my { align-self: flex-end; background: var(--accent); border-bottom-right-radius: 4px; }
         .other { align-self: flex-start; background: rgba(255,255,255,0.1); border-bottom-left-radius: 4px; }
 
-        .input-bar { padding: 20px; background: rgba(23, 33, 43, 0.6); display: none; gap: 15px; align-items: center; border-top: 1px solid var(--glass-border); }
-        .input-bar input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 15px; color: white; outline: none; }
+        .input-bar { padding: 15px; background: rgba(23, 33, 43, 0.6); display: none; gap: 10px; align-items: center; border-top: 1px solid var(--glass-border); }
+        .input-bar input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 20px; padding: 10px 15px; color: white; outline: none; }
         
-        /* СКРЫТЫЙ ИНПУТ ФАЙЛА */
         #fileInp { display: none; }
-
-        #context-menu {
-            position: fixed; background: #1c242d; border: 1px solid var(--glass-border);
-            border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; display: none;
-        }
+        #context-menu { position: fixed; background: #1c242d; border: 1px solid var(--glass-border); border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; display: none; }
         .menu-item { padding: 10px 20px; cursor: pointer; font-size: 14px; }
-        .menu-item:hover { background: rgba(255,255,255,0.05); }
-        .menu-item.red { color: var(--danger); }
-
         .nav-btn { padding: 15px; background: none; color: var(--accent); border: none; cursor: pointer; font-weight: bold; border-top: 1px solid var(--glass-border); }
+
+        /* МОБИЛЬНАЯ АДАПТАЦИЯ */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; position: absolute; height: 100%; left: 0; top: 0; }
+            .chat-view { width: 100%; position: absolute; height: 100%; left: 0; top: 0; display: none; }
+            .chat-view.active { display: flex; z-index: 5; }
+            .back-btn { display: block; }
+            .bubble { max-width: 90%; }
+        }
     </style>
 </head>
 <body>
@@ -82,20 +85,22 @@
         <div class="menu-item red" onclick="deleteHistory()">🗑 Удалить переписку</div>
     </div>
 
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="search-area"><input type="text" class="search-bar" id="srch" placeholder="Поиск..." oninput="searchUsers()"></div>
         <div style="flex:1; overflow-y:auto" id="chatList"></div>
         <button class="nav-btn" onclick="location.href='settings.html'">⚙ НАСТРОЙКИ</button>
     </div>
 
-    <div class="chat-view">
+    <div class="chat-view" id="chatView">
+        <div class="header" id="chatHeader">
+            <button class="back-btn" onclick="closeChat()">←</button>
+            <b id="hName"></b>
+        </div>
         <div class="empty-state" id="emptyState">Выберите чат для начала общения</div>
-        <div class="header" id="chatHeader"><b id="hName"></b></div>
         <div class="messages" id="mBox"></div>
         <div class="input-bar" id="chatInputBar">
             <label for="fileInp" style="cursor:pointer; font-size: 24px;">📷</label>
             <input type="file" id="fileInp" accept="image/*" onchange="uploadImg(this)">
-            
             <input type="text" id="msgI" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')send()">
             <button onclick="send()" style="background:none; border:none; color:var(--accent); font-size:24px; cursor:pointer;">🚀</button>
         </div>
@@ -105,7 +110,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy, writeBatch, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        // ДОБАВЛЕН ИМПОРТ STORAGE
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         const firebaseConfig = {
@@ -120,7 +124,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const storage = getStorage(app); // Инициализация хранилища
+        const storage = getStorage(app);
 
         let activeId = null;
         let unsubMessages = null;
@@ -171,7 +175,6 @@
                     const m = d.data();
                     const isRelevant = (m.from === id && m.to === auth.currentUser.uid) || (m.to === id && m.from === auth.currentUser.uid);
                     if(isRelevant) {
-                        // Если это картинка, пишем "Фото" в предпросмотре
                         document.getElementById(`last-${id}`).innerText = m.img ? "📷 Фото" : m.text;
                         const mTime = m.time ? m.time.toMillis() : Date.now();
                         if(m.from === id && activeId !== id && mTime > startTime) {
@@ -184,8 +187,9 @@
 
         window.openChat = (id, name) => {
             activeId = id;
+            document.getElementById('chatView').classList.add('active');
             document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('chatHeader').style.display = 'block';
+            document.getElementById('chatHeader').style.display = 'flex';
             document.getElementById('chatInputBar').style.display = 'flex';
             document.getElementById('hName').innerText = name;
             document.getElementById(`badge-${id}`).style.display = "none";
@@ -200,9 +204,7 @@
                     const m = d.data();
                     if((m.from === auth.currentUser.uid && m.to === activeId) || (m.to === auth.currentUser.uid && m.from === activeId)) {
                         let content = m.text ? `<div>${m.text}</div>` : "";
-                        // Если в сообщении есть ссылка на картинку, добавляем <img>
                         if(m.img) content += `<img src="${m.img}" onclick="window.open('${m.img}')">`;
-                        
                         box.innerHTML += `<div class="bubble ${m.from === auth.currentUser.uid ? 'my' : 'other'}">${content}</div>`;
                     }
                 });
@@ -210,23 +212,21 @@
             });
         };
 
-        // ФУНКЦИЯ ЗАГРУЗКИ ИЗОБРАЖЕНИЯ
+        window.closeChat = () => {
+            document.getElementById('chatView').classList.remove('active');
+            activeId = null;
+        };
+
         window.uploadImg = async (el) => {
             const file = el.files[0];
             if(!file || !activeId) return;
-            
             const fileRef = ref(storage, `chats/${Date.now()}_${file.name}`);
             try {
                 const snapshot = await uploadBytes(fileRef, file);
                 const url = await getDownloadURL(snapshot.ref);
-                await addDoc(collection(db, "messages"), { 
-                    from: auth.currentUser.uid, 
-                    to: activeId, 
-                    img: url, 
-                    time: serverTimestamp() 
-                });
+                await addDoc(collection(db, "messages"), { from: auth.currentUser.uid, to: activeId, img: url, time: serverTimestamp() });
             } catch (e) { alert("Ошибка загрузки"); }
-            el.value = ""; // Сброс инпута
+            el.value = "";
         };
 
         window.deleteHistory = async () => {
