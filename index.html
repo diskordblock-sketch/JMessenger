@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JMessenger - Вход</title>
     <style>
         body {
@@ -17,7 +17,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 32px; padding: 50px; width: 360px; text-align: center;
             box-shadow: 0 25px 50px rgba(0,0,0,0.6);
-            transition: all 0.5s ease;
+            transition: opacity 0.3s ease;
         }
         h1 { font-weight: 200; letter-spacing: 6px; margin-bottom: 40px; font-size: 28px; }
         input {
@@ -32,10 +32,15 @@
         }
         .toggle-link { color: #2575fc; cursor: pointer; display: block; margin-top: 20px; font-size: 14px; opacity: 0.8; }
         .hidden { display: none; }
-        @media (max-width: 480px) { .glass-card { width: 90%; padding: 30px 20px; } }
+        
+        /* Загрузочный экран, пока проверяется вход */
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f1721; display: flex; align-items: center; justify-content: center; z-index: 100; transition: 0.5s; }
     </style>
 </head>
 <body>
+
+    <div id="loader"><h1>LOADING...</h1></div>
+
     <div class="glass-card" id="authCard">
         <h1>JMESSENGER</h1>
         <div id="regFields">
@@ -71,9 +76,16 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // АВТО-ВХОД
+        // КЛЮЧЕВОЙ БЛОК: Проверка авторизации
         onAuthStateChanged(auth, (user) => {
-            if (user) location.href = "second.html";
+            if (user) {
+                // Если юзер найден, сразу улетаем на вторую страницу
+                window.location.replace("second.html");
+            } else {
+                // Если юзера нет, убираем загрузочный экран и показываем форму
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            }
         });
 
         window.toggleForm = (showLogin) => {
@@ -90,7 +102,7 @@
                 } else {
                     await signInWithEmailAndPassword(auth, document.getElementById('le').value, document.getElementById('lp').value);
                 }
-            } catch(e) { alert(e.message); }
+            } catch(e) { alert("Ошибка: " + e.message); }
         };
     </script>
 </body>
